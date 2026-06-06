@@ -65,8 +65,8 @@ ollama pull nomic-embed-text
 ### 2. Python environment
 
 ```bash
-git clone <your-repo>
-cd ai-pipeline
+git clone https://github.com/a2kad/ai-agents.git
+cd ai-agents
 
 python3 -m venv venv
 source venv/bin/activate
@@ -79,7 +79,7 @@ pip install ollama langgraph langchain-ollama chromadb rich
 ## Project structure
 
 ```
-ai-pipeline/
+ai-agents/
 ├── venv/
 ├── test_connection.py   # Verify connection to all models
 ├── router_agent.py      # Task classifier (llama3.2:3b)
@@ -159,7 +159,7 @@ Set up once, runs automatically on every `git commit`.
 # From the root of your project:
 cat > .git/hooks/pre-commit << 'EOF'
 #!/bin/bash
-cd /path/to/ai-pipeline && source venv/bin/activate
+cd /path/to/ai-agents && source venv/bin/activate
 git diff --cached --name-only --diff-filter=M | grep ".py$" | while read file; do
     python -c "
 from agents import review_agent
