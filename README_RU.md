@@ -1,253 +1,93 @@
-# 🤖 AI Code Pipeline — Apple M3 Pro
+# 🤖 AI Agents — Локальный многоагентный конвейер кода
 
-Локальный многоагентный конвейер разработки кода на базе Ollama. Все модели работают на вашем MacBook — данные не покидают машину.
+Репозиторий содержит локальный конвейер мультиагентной разработки на базе Ollama. Оптимизирован для Apple Silicon (M1/M2/M3). Все модели и данные используются локально.
 
----
+Ключевые возможности:
 
-## Архитектура
+- Локальный режим: модели запускаются через Ollama на вашей машине.
+- RAG: индексирование проекта и поиск контекста для генерации с учётом стиля проекта.
+- Расширяемость: просто добавлять новых агентов и менять модели.
 
-```
-Задача пользователя
-        │
-        ▼
-┌───────────────────┐
-│  Роутер-агент     │  llama3.2:3b  — классифицирует задачу
-└────────┬──────────┘
-         │
-    ┌────┴────┐
-    │         │
-    ▼         ▼
-SIMPLE      CODE ──────────────────────┐
-  │           │                        │
-  ▼           ▼                        ▼
-llama3.2   qwen2.5-coder:7b      REVIEW / COMPLEX
-  :3b      генерация кода         qwen2.5:14b
-                │                 анализ и ревью
-                ▼
-         Авто-ревью
-         qwen2.5:14b
-```
+## Быстрый старт
 
----
-
-## Модели
-
-| Модель | Роль | VRAM / RAM |
-|---|---|---|
-| `llama3.2:3b` | Роутер, классификатор, простые вопросы | ~2 GB |
-| `qwen2.5-coder:7b` | Генерация кода | ~4.7 GB |
-| `qwen2.5:14b` | Ревью, архитектура, сложный анализ | ~8.9 GB |
-| `nomic-embed-text` | Векторизация для RAG | ~0.3 GB |
-
----
-
-## Требования
-
-- Apple M3 Pro, 18 GB RAM
-- macOS 13+
-- Python 3.11+
-- [Ollama](https://ollama.com) установлен и запущен
-
----
-
-## Установка
-
-### 1. Ollama и модели
+1. Создайте и активируйте виртуальное окружение:
 
 ```bash
-# Установить Ollama с ollama.com, затем:
+python3 -m venv venv
+source venv/bin/activate
+```
+
+2. Установите зависимости:
+
+```bash
+pip install -r requirements.txt
+```
+
+3. Загрузите модели для Ollama (один раз):
+
+```bash
 ollama pull llama3.2:3b
 ollama pull qwen2.5-coder:7b
 ollama pull qwen2.5:14b
 ollama pull nomic-embed-text
 ```
 
-### 2. Python-окружение
-
-```bash
-git clone https://github.com/a2kad/ai-agents.git
-cd ai-agents
-
-python3 -m venv venv
-source venv/bin/activate
-
-pip install ollama langgraph langchain-ollama chromadb rich
-```
-
----
-
-## Структура проекта
-
-```
-ai-agents/
-├── venv/
-├── test_connection.py   # Проверка связи со всеми моделями
-├── router_agent.py      # Классификатор задач (llama3.2:3b)
-├── agents.py            # Специализированные агенты
-├── pipeline.py          # Основной конвейер — точка входа
-└── rag_agent.py         # RAG-агент с памятью на проект
-```
-
----
-
-## Запуск
-
-### Интерактивный режим
+4. Запустите интерактивный конвейер:
 
 ```bash
 source venv/bin/activate
 python pipeline.py
 ```
 
-Введите задачу на русском или английском — конвейер сам выберет нужного агента.
+## Обзор
 
-### Примеры запросов
+Конвейер распределяет задачи между агентами:
 
-```
-Ваша задача: Напиши класс для работы с очередью на Python
-→ Роутер: CODE → qwen2.5-coder:7b → авто-ревью qwen2.5:14b
+- Роутер (`llama3.2:3b`) — классификация задачи.
+- Генератор кода (`qwen2.5-coder:7b`) — генерация для задач `CODE`.
+- Ревьюер (`qwen2.5:14b`) — ревью и сложный анализ.
+- `nomic-embed-text` — векторизация для RAG.
 
-Ваша задача: Найди баги: def divide(a, b): return a / b
-→ Роутер: REVIEW → qwen2.5:14b
+RAG позволяет индексировать репозиторий и использовать релевантный контекст при генерации кода.
 
-Ваша задача: Что такое декоратор в Python?
-→ Роутер: SIMPLE → llama3.2:3b
+## Индексация (RAG)
 
-Ваша задача: Спроектируй архитектуру микросервисов для интернет-магазина
-→ Роутер: COMPLEX → qwen2.5:14b
-```
-
-### Проверка работоспособности
+Чтобы проиндексировать директорию в локальное хранилище Qdrant:
 
 ```bash
-python test_connection.py
-# Ожидаемый вывод:
-# llama3.2:3b: работаю
-# qwen2.5-coder:7b: работаю
-# qwen2.5:14b: работаю
+./venv/bin/python -m indexer.index_docs ./path/to/project
 ```
 
----
+Используйте `--reset`, чтобы пересоздать коллекцию.
 
-## RAG — память на ваш проект
+## Разработка
 
-Индексирует кодовую базу, чтобы агенты знали ваш проект и генерировали код в вашем стиле.
+- Запуск тестов:
 
 ```bash
-python rag_agent.py
+pytest tests/ -q
 ```
 
-Добавить документы вручную:
+- Линтинг/форматирование: используйте предпочитаемые инструменты (Black, Flake8 и т.д.).
 
-```python
-from rag_agent import add_document
+## Как внести изменения
 
-add_document("auth",   "JWT аутентификация, модель User: id, email, role")
-add_document("db",     "PostgreSQL, ORM SQLAlchemy, миграции Alembic")
-add_document("api",    "FastAPI, все эндпоинты возвращают {data, error, meta}")
-```
+1. Форкните репозиторий и создайте branch.
+2. Добавьте тесты для нового функционала.
+3. Откройте PR с описанием изменений.
 
-После индексации агент учитывает ваши соглашения при генерации кода.
+## Важные файлы
 
----
+- `pipeline.py` — точка входа конвейера.
+- `agents.py` — реализации агентов.
+- `indexer/` — раздел для chunking/embedding.
+- `rag/` — обёртки для векторного хранилища и RAG.
 
-## Git Hook — авто-ревью перед коммитом
+## Устранение неполадок
 
-Устанавливается один раз, запускается автоматически на каждый `git commit`.
-
-```bash
-# В корне вашего проекта:
-cat > .git/hooks/pre-commit << 'EOF'
-#!/bin/bash
-cd /path/to/ai-agents && source venv/bin/activate
-git diff --cached --name-only --diff-filter=M | grep "\.py$" | while read file; do
-    python -c "
-from agents import review_agent
-import sys
-code = open('$file').read()
-result = review_agent(f'Проверь код:\n{code}')
-print(f'\n[REVIEW] $file\n{result}')
-if 'оценка: [1-4]' in result.lower():
-    sys.exit(1)
-"
-done
-EOF
-chmod +x .git/hooks/pre-commit
-```
-
----
-
-## Производительность на M3 Pro
-
-| Модель | Скорость | Время на типичный запрос |
-|---|---|---|
-| `llama3.2:3b` (роутер) | ~70 tok/s | < 1 сек |
-| `qwen2.5-coder:7b` | ~35 tok/s | 5–15 сек |
-| `qwen2.5:14b` (ревью) | ~18 tok/s | 15–40 сек |
-
-Unified memory M3 Pro позволяет держать все модели загруженными одновременно без перезагрузки между запросами.
-
----
-
-## Расширение конвейера
-
-### Добавить нового агента
-
-```python
-# в agents.py
-def test_agent(task: str) -> str:
-    response = ollama.chat(
-        model="qwen2.5-coder:7b",
-        messages=[{
-            "role": "system",
-            "content": "Ты эксперт по тестированию. Пиши pytest тесты с edge cases."
-        }, {
-            "role": "user", "content": task
-        }]
-    )
-    return response['message']['content']
-```
-
-```python
-# в pipeline.py — добавить в AGENT_MAP:
-"TEST": (test_agent, "qwen2.5-coder:7b", "blue"),
-```
-
-### Подключить другую модель
-
-```bash
-ollama pull deepseek-r1:14b   # сильный в рассуждениях
-ollama pull phi4:14b          # компактный и быстрый
-```
-
-Заменить `model=` в нужном агенте в `agents.py`.
-
----
-
-## Интеграция с VS Code
-
-Установить расширение [Continue](https://continue.dev), в настройках указать локальный Ollama:
-
-```json
-{
-  "models": [
-    {
-      "title": "Qwen Coder",
-      "provider": "ollama",
-      "model": "qwen2.5-coder:7b"
-    }
-  ]
-}
-```
-
-После этого агент доступен прямо в редакторе через `Cmd+I`.
-
----
+- Если появляются предупреждения Qdrant на этапе завершения, обновите `qdrant-client` и убедитесь, что клиент закрывается явно (CLI уже вызывает `close_client()` при выходе).
+- Если модели Ollama не загружаются, проверьте, что `ollama` запущен и модели загружены.
 
 ## Лицензия
 
-MIT — используйте свободно.
-
----
-
-*Построено на: Ollama · Qwen2.5 · Llama 3.2 · LangGraph · ChromaDB*
+MIT

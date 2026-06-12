@@ -1,0 +1,17 @@
+# Core
+ollama>=0.3.0
+langgraph>=0.2.0
+langchain-ollama>=0.1.0
+
+# Vector store
+qdrant-client>=1.9.0
+
+# PDF support (optional — graceful fallback if missing)
+pdfminer.six>=20221105
+
+# CLI & display
+rich>=13.0.0
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
